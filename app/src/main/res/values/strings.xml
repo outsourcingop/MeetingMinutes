@@ -1,0 +1,4 @@
+<resources>
+    <string name="app_name">MeetingMinutes</string>
+    <string name="date_format">yyyy_MM_dd_HH_mm</string>
+</resources>
