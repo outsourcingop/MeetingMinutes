@@ -55,11 +55,10 @@ public class AudioUtil {
       int minutes = Integer.parseInt(parts[1]);
       double seconds = Double.parseDouble(parts[2]);
 
-      // 将总时间转换为秒数
       double totalSeconds = (hours * 3600) + (minutes * 60) + seconds;
 
-      // 计算可以切分成多少个 10 分钟的片段
-      int segments = (int) Math.ceil(totalSeconds / 600.0);
+      // how many 8 min pieces
+      int segments = (int) Math.ceil(totalSeconds / 480.0);
 
       return segments;
    }

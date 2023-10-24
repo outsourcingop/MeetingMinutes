@@ -63,7 +63,7 @@ public class SummaryPresenter extends BasicPresenter {
         List<ChatMessage> messages = new ArrayList<>();
         messages.add(new ChatMessage("system",
                 "You are an AI assistant that helps people generate a summary in /// /// and list all action items discussed." +
-                        "All in 800 tokens. You MUST Follow the format in {{{ }}} and use " + language + " LANGUAGE:" +
+                        "All in 400 tokens. You MUST Follow the format in {{{ }}} and MUST USE " + language + " LANGUAGE." +
                         "{{{\nSummary:\n(Summary) \n\nAction items:\n- Describe any additional action items here.}}}"));
         messages.add(new ChatMessage("user", conversation));
 

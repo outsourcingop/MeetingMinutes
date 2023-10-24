@@ -18,6 +18,7 @@ public class SplitFilePresenter extends BasicPresenter {
     private static final String TAG = SplitFilePresenter.class.getSimpleName();
 
     private static final boolean DEBUG = true;
+    private static final int SPLIT_DURATION = 8;
     private final Context mContext;
     private final LogTextCallback mLogTextCallback;
 
@@ -90,8 +91,8 @@ public class SplitFilePresenter extends BasicPresenter {
         for (int i = 0; i < splitNumber; i++) {
             String newFileAbsolutePath = createNewAudioFilePath(inputFilePath, i);
 
-            String startTime = (i == 0) ? "00:00:00" : "00:" + i * 10 + ":00";
-            String duration = "00:10:00";
+            String startTime = (i == 0) ? "00:00:00" : "00:" + i * 8 + ":00";
+            String duration = "00:08:00";
             Log.d(TAG, "splitAndSaveFiles, file" + i + "startTime" + "\t" + duration);
 
             String command = "-y -ss " + startTime +

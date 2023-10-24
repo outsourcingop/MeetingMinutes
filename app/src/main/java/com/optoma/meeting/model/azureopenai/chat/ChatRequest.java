@@ -22,6 +22,6 @@ public class ChatRequest {
    public ChatRequest(List<ChatMessage> messages) {
       this.messages = messages;
       this.temperature = 0.0f;
-      this.max_tokens = 800;
+      this.max_tokens = 400;
    }
 }

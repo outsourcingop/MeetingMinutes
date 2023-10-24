@@ -24,7 +24,7 @@ android {
             buildConfigField "String", "STORAGE_ACCOUNT_NAME", "\"AccountName=devop2023;\""
             buildConfigField "String", "STORAGE_ACCOUNT_KEY", "\"AccountKey=PTtGnyHFS1o6ZdkH1ffc7tJy91BVBUWNZXoJcqumGIgg9RFLX2LRzWuW1hF1nL415O7eQvHlM3IY+ASte9IF1A;\""
             buildConfigField "String", "SPEECH_SUBSCRPTION_KEY", "\"2ba1c5f2eb1b47e58d434cd7733e0b0d\""
-            buildConfigField "String", "AZURE_OPEN_AI_API_KEY", "\"028930432b8a484996c6ba13a8f87a\""
+            buildConfigField "String", "AZURE_OPEN_AI_API_KEY", "\" ac78401ba38a48cfb6d30b90ef0adee3\""
         }
 
         release {

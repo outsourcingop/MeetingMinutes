@@ -28,7 +28,7 @@ public class CompletionRequest {
    public CompletionRequest(String prompt) {
       this.prompt = prompt;
       this.stop = "";
-      this.maxTokens = 800;
+      this.maxTokens = 400;
    }
 
    public static class Message {

@@ -2,7 +2,7 @@ package com.optoma.meeting.network;
 
 public class AzureOpenAIServiceHelper {
     public static final String BASE_URL =
-            "https://devop.openai.azure.com/openai/deployments/devp/";
+            "https://iwcp-openai.openai.azure.com/openai/deployments/cc-chat-api/";
 
     private static volatile AzureOpenAIService instance;
     private static final Object lock = new Object();
