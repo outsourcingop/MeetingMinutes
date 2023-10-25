@@ -113,7 +113,6 @@ public class AiService extends Service {
                     @Override
                     public void onTranscribed(String transcribeResult, long timeStamp) {
                         Log.d(TAG, "onTranscribed -> getAndStoreSummary");
-//                mSummaryPresenter.getAndStoreSummary(mCurrentLanguage, transcribeResult, timeStamp);
                     }
 
                     @Override
@@ -125,13 +124,31 @@ public class AiService extends Service {
                         mSummaryPresenter.processMultipleConversations(mCurrentLanguage,
                                 partNumberToTranscriber, timeStamp);
                     }
+
+                    @Override
+                    public void onError(String error) {
+                        Log.d(TAG, "onError# error=" + error);
+                        mAiServiceCallback.onStateChanged(ProcessState.END_TRANSCRIBE.name());
+                        mAiServiceCallback.onStateChanged(ProcessState.IDLE.name());
+                    }
                 });
 
-        mSummaryPresenter = new SummaryPresenter(this, mLogTextCallbackWrapper, fileName -> {
-            Log.d(TAG, "onSummarized: " + fileName);
-            mAiServiceCallback.onStateChanged(ProcessState.END_SUMMARY.name());
-            mAiServiceCallback.onStateChanged(ProcessState.IDLE.name());
-        });
+        mSummaryPresenter = new SummaryPresenter(this, mLogTextCallbackWrapper,
+                new SummaryPresenter.SummaryCallback() {
+                    @Override
+                    public void onSummarized() {
+                        Log.d(TAG, "onSummarized#");
+                        mAiServiceCallback.onStateChanged(ProcessState.END_SUMMARY.name());
+                        mAiServiceCallback.onStateChanged(ProcessState.IDLE.name());
+                    }
+
+                    @Override
+                    public void onError(String error) {
+                        Log.d(TAG, "onError# error=" + error);
+                        mAiServiceCallback.onStateChanged(ProcessState.END_SUMMARY.name());
+                        mAiServiceCallback.onStateChanged(ProcessState.IDLE.name());
+                    }
+                });
 
         mSaveTextToFilePresenter = new SaveTextToFilePresenter(this, mLogTextCallbackWrapper);
     }

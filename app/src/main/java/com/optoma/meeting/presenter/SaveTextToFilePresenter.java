@@ -1,5 +1,7 @@
 package com.optoma.meeting.presenter;
 
+import static com.optoma.meeting.util.FileUtil.createMeetingMinutesFile;
+
 import android.content.Context;
 import android.os.Environment;
 import android.util.Log;
@@ -20,22 +22,20 @@ public class SaveTextToFilePresenter extends BasicPresenter {
     private static final String TAG = SaveTextToFilePresenter.class.getSimpleName();
 
     private final Context mContext;
+    private final LogTextCallback mLogTextCallback;
 
-    private LogTextCallback mLogTextCallback;
     public SaveTextToFilePresenter(Context context, LogTextCallback callback) {
         this.mContext = context;
         this.mLogTextCallback = callback;
     }
 
     public void saveStringsToFile(ArrayList<String> textListToSave) {
+        File outputFile = createMeetingMinutesFile(mContext, System.currentTimeMillis());
+
         mCompositeDisposable.add(
                 Completable.fromAction(() -> {
-                            File downloadsDirectory = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS);
-                            long timestamp = System.currentTimeMillis();
-
-                            String fileName = "Meeting_minutes_" + timestamp + ".txt";
-                            mLogTextCallback.onLogReceived("Start saveStringsToFile, fileName = " + fileName);
-                            File outputFile = new File(downloadsDirectory, fileName);
+                            mLogTextCallback.onLogReceived(
+                                    "Start saveStringsToFile, fileName = " + outputFile.getName());
 
                             try {
                                 FileOutputStream outputStream = new FileOutputStream(outputFile);
@@ -45,7 +45,8 @@ public class SaveTextToFilePresenter extends BasicPresenter {
                                     outputStream.write("\n".getBytes());
                                 }
 
-                                mLogTextCallback.onLogReceived("End saveStringsToFile, fileName = " + fileName);
+                                mLogTextCallback.onLogReceived(
+                                        "End saveStringsToFile, fileName = " + outputFile.getName());
                                 outputStream.close();
 
                             } catch (IOException e) {

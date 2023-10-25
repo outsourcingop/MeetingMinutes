@@ -31,7 +31,23 @@ public class FileUtil {
 
     public static final String DOCUMENTS_DIR = "documents";
 
-    public static String convertTimestampToDateTime(Context context, long timestamp) {
+    public static File getExternalStoragePublicDirectory() {
+        return Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS);
+    }
+
+    public static File createMeetingMinutesFile(Context context, long timestamp) {
+        String fileName = "Meeting_Minutes_" + convertTimestampToDateTime(context,
+                timestamp) + ".txt";
+        return new File(getExternalStoragePublicDirectory(), fileName);
+    }
+
+    public static File createMeetingActionsFile(Context context, long timestamp) {
+        String fileName = "Meeting_Actions_" + convertTimestampToDateTime(context,
+                timestamp) + ".txt";
+        return new File(getExternalStoragePublicDirectory(), fileName);
+    }
+
+    private static String convertTimestampToDateTime(Context context, long timestamp) {
         Date date = new Date(timestamp);
         SimpleDateFormat sdf = new SimpleDateFormat(context.getString(R.string.date_format));
         return sdf.format(date);

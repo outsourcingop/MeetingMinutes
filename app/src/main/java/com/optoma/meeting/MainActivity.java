@@ -65,7 +65,7 @@ public class MainActivity extends AppCompatActivity {
         public void onStateChanged(String state) {
             runOnUiThread(() -> {
                 processStateChanged(ProcessState.valueOf(state));
-                updateLogText("ai service state=" + mProcessState.name());
+                updateLogText("serviceState=" + mProcessState.name());
             });
         }
 

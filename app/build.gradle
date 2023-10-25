@@ -21,8 +21,8 @@ android {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
             buildConfigField "String", "DEFAULT_ENDPOINTS_PROTOCAL", "\"DefaultEndpointsProtocol=https;\""
-            buildConfigField "String", "STORAGE_ACCOUNT_NAME", "\"AccountName=devop2023;\""
-            buildConfigField "String", "STORAGE_ACCOUNT_KEY", "\"AccountKey=PTtGnyHFS1o6ZdkH1ffc7tJy91BVBUWNZXoJcqumGIgg9RFLX2LRzWuW1hF1nL415O7eQvHlM3IY+ASte9IF1A;\""
+            buildConfigField "String", "STORAGE_ACCOUNT_NAME", "\"AccountName=ccprojectstorage;\""
+            buildConfigField "String", "STORAGE_ACCOUNT_KEY", "\"AccountKey=byZfmyd37jRiswtsUlyJLE+yOtG3PWl9q7OeXEzMNf/YcLvRgyWBNeY6Gj4CTwhNMzIoFUP6/m2T+ASt+06AIg==;\""
             buildConfigField "String", "SPEECH_SUBSCRPTION_KEY", "\"2ba1c5f2eb1b47e58d434cd7733e0b0d\""
             buildConfigField "String", "AZURE_OPEN_AI_API_KEY", "\" ac78401ba38a48cfb6d30b90ef0adee3\""
         }

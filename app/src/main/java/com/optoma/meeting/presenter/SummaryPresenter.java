@@ -1,9 +1,8 @@
 package com.optoma.meeting.presenter;
 
-import static com.optoma.meeting.util.FileUtil.convertTimestampToDateTime;
+import static com.optoma.meeting.util.FileUtil.createMeetingActionsFile;
 
 import android.content.Context;
-import android.os.Environment;
 import android.util.Log;
 
 import com.optoma.meeting.BuildConfig;
@@ -12,6 +11,7 @@ import com.optoma.meeting.model.azureopenai.chat.ChatMessage;
 import com.optoma.meeting.model.azureopenai.chat.ChatRequest;
 import com.optoma.meeting.model.azureopenai.chat.ChatResponse;
 import com.optoma.meeting.network.AzureOpenAIServiceHelper;
+import com.optoma.meeting.network.NetworkServiceHelper;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -37,7 +37,9 @@ public class SummaryPresenter extends BasicPresenter {
     private Map<Integer, String> mPartNumberToSummary = new ConcurrentHashMap<>();
 
     public interface SummaryCallback {
-        void onSummarized(String fileName);
+        void onSummarized();
+
+        void onError(String error);
     }
 
     public SummaryPresenter(Context context, LogTextCallback callback,
@@ -69,7 +71,8 @@ public class SummaryPresenter extends BasicPresenter {
 
         mCompositeDisposable.add(
                 AzureOpenAIServiceHelper.getInstance()
-                        .chatAzureOpenAI(BuildConfig.AZURE_OPEN_AI_API_KEY,"application/json", new ChatRequest(messages))
+                        .chatAzureOpenAI(BuildConfig.AZURE_OPEN_AI_API_KEY, "application/json",
+                                new ChatRequest(messages))
                         .subscribeOn(Schedulers.io())
                         .observeOn(AndroidSchedulers.mainThread())
                         .timeout(2, TimeUnit.MINUTES)
@@ -80,40 +83,34 @@ public class SummaryPresenter extends BasicPresenter {
                                 ChatResponse result = response.body();
                                 String meetingSummary = result.choices.get(0).message.content;
                                 Log.d(TAG, "onResponse: " + meetingSummary);
-//                                storeMeetingMinutesToFile(meetingSummary, timeInMillis);
                                 mPartNumberToSummary.put(partNumber, meetingSummary);
                                 if (mPartNumberToSummary.size() == totalPartNumber) {
-                                    storeMeetingMinutesToFile(timeInMillis);
+                                    storeMeetingActionsToFile(timeInMillis);
                                 }
                             } else {
                                 ResponseBody errorBody = response.errorBody();
                                 if (errorBody != null) {
-//                                    String errorMessage = NetworkServiceHelper.generateErrorToastContent(errorBody);
-                                    Log.d(TAG, "errorBody: " + errorBody.toString());
-                                    mLogTextCallback.onLogReceived(
-                                            "errorBody: " + errorBody.toString());
-                                    // TODO
-                                    //showErrorToast(NetworkServiceHelper.generateErrorToastContent(errorBody));
-
+                                    String errorLog = "errorMessage: " +
+                                            NetworkServiceHelper.generateErrorToastContent(
+                                                    errorBody);
+                                    Log.d(TAG, errorLog);
+                                    mLogTextCallback.onLogReceived(errorLog);
+                                    mSummaryCallback.onError(errorLog);
                                 }
                             }
                         }, throwable -> Log.w(TAG, "fail to getOpenAICompletion, %s", throwable))
         );
     }
 
-    private void storeMeetingMinutesToFile(long timestamp) {
-        Log.d(TAG, "storeTextToDatabase");
-        mLogTextCallback.onLogReceived("storeTextToDatabase");
+    private void storeMeetingActionsToFile(long timestamp) {
+        Log.d(TAG, "start to store meeting actions to database");
+        mLogTextCallback.onLogReceived("storeMeetingActionsToDatabase");
+
+        File outputFile = createMeetingActionsFile(mContext, timestamp);
 
         mCompositeDisposable.add(
                 Completable.fromAction(() -> {
-                            File downloadsDirectory = Environment.getExternalStoragePublicDirectory(
-                                    Environment.DIRECTORY_DOWNLOADS);
-                            String formattedDateTime = convertTimestampToDateTime(mContext, timestamp);
-                            String fileName = "Meeting_Actions_" + formattedDateTime + ".txt";
-
-                            File outputFile = new File(downloadsDirectory, fileName);
-
+                            StringBuilder summary = new StringBuilder();
                             List<String> summaryList = new ArrayList<>();
                             List<String> actionItemsList = new ArrayList<>();
 
@@ -122,18 +119,22 @@ public class SummaryPresenter extends BasicPresenter {
                             try {
                                 FileOutputStream outputStream = new FileOutputStream(outputFile);
                                 outputStream.write("Summary:\n".getBytes());
+                                summary.append("Summary:\n");
                                 for (int i = 0; i < summaryList.size(); i++) {
                                     outputStream.write(summaryList.get(i).getBytes());
                                     outputStream.write("\n".getBytes());
+                                    summary.append(summaryList.get(i)).append("\n");
                                 }
                                 outputStream.write("\nAction items:\n".getBytes());
+                                summary.append("\nAction items:\n");
                                 for (int i = 0; i < actionItemsList.size(); i++) {
                                     outputStream.write(actionItemsList.get(i).getBytes());
                                     outputStream.write("\n".getBytes());
+                                    summary.append(actionItemsList.get(i)).append("\n");
                                 }
 
                                 outputStream.close();
-                                mSummaryCallback.onSummarized(fileName);
+                                mLogTextCallback.onLogReceived(summary.toString());
 
                             } catch (IOException e) {
                                 e.printStackTrace();
@@ -141,8 +142,13 @@ public class SummaryPresenter extends BasicPresenter {
                         })
                         .subscribeOn(Schedulers.io())
                         .observeOn(AndroidSchedulers.mainThread())
-                        .subscribe(() ->
-                                Log.d(TAG, "Saved meeting minutes to file"))
+                        .subscribe(() -> {
+                            String saveFileLog = "***** Saved meeting actions to " +
+                                    outputFile.getPath() + " *****\n";
+                            Log.d(TAG, saveFileLog);
+                            mLogTextCallback.onLogReceived(saveFileLog);
+                            mSummaryCallback.onSummarized();
+                        })
         );
     }
 
