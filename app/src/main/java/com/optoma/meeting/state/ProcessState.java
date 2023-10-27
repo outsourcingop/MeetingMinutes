@@ -1,7 +1,5 @@
 package com.optoma.meeting.state;
 
-import androidx.annotation.NonNull;
-
 public enum ProcessState {
     IDLE(true),
     START_SPLIT(false),
@@ -10,17 +8,12 @@ public enum ProcessState {
     END_TRANSCRIBE(false),
     START_SUMMARY(false),
     END_SUMMARY(false),
-    START_TEXT_PROCESSING(false);
+    START_TEXT_SAVING(false),
+    END_TEXT_SAVING(false);
 
     public final boolean interactWithUi;
 
     ProcessState(boolean interactWithUi) {
         this.interactWithUi = interactWithUi;
-    }
-
-    @NonNull
-    @Override
-    public String toString() {
-        return "[" + name() + ", interactWithUi=" + interactWithUi + "]";
     }
 }

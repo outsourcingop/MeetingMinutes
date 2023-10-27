@@ -54,7 +54,7 @@ public class AiService extends Service {
             Log.d(TAG, "AIDL.Stub#startTextProcessing params=" + params.size());
             mCurrentLanguage = params.getString(KEY_LANGUAGE);
             ArrayList<String> textListToSave = params.getStringArrayList(KEY_TEXT);
-            mAiServiceCallback.onStateChanged(ProcessState.START_TEXT_PROCESSING.name());
+            mAiServiceCallback.onStateChanged(ProcessState.START_TEXT_SAVING.name());
             // Put the heavy things to the background thread.
             mExecutors.execute(() ->
                     mSaveTextToFilePresenter.saveStringsToFile(textListToSave));
@@ -150,7 +150,13 @@ public class AiService extends Service {
                     }
                 });
 
-        mSaveTextToFilePresenter = new SaveTextToFilePresenter(this, mLogTextCallbackWrapper);
+        mSaveTextToFilePresenter = new SaveTextToFilePresenter(this, mLogTextCallbackWrapper,
+                (Map<Integer, String> partNumberToTranscriber, long timeStamp) -> {
+                    Log.d(TAG, "onTextSaved#");
+                    mAiServiceCallback.onStateChanged(ProcessState.END_TEXT_SAVING.name());
+                    mSummaryPresenter.processMultipleConversations(mCurrentLanguage,
+                            partNumberToTranscriber, timeStamp);
+                });
     }
 
     private void destroyPresenter() {

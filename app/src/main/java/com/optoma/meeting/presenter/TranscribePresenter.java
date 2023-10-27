@@ -89,13 +89,14 @@ public class TranscribePresenter extends BasicPresenter {
         void onError(String error);
     }
 
+    private final Map<String, Integer> mTranscribeIDToPartNumber = new HashMap<>();
+    private final Map<Integer, String> mPartNumberToTranscriberForSummary = new HashMap<>();
+    private final Map<Integer, String> mPartNumberToTranscriberForView = new HashMap<>();
+    private final Map<String, Disposable> mPollingDisposables = new HashMap<>();
+
     private CloudBlockBlob mCloudBlockBlob;
     private CloudBlobContainer mCloudBlobContainer;
     private TranscribeResult mTranscribeResult;
-
-    private Map<String, Integer> mTranscribeIDToPartNumber = new HashMap<>();
-    private Map<Integer, String> mPartNumberToTranscriber = new HashMap<>();
-    private Map<String, Disposable> mPollingDisposables = new HashMap<>();
 
     public void uploadAudioAndTranscribe(List<String> absolutePathList, String languageString) {
         Log.d(TAG, "uploadFileFromFile: start");
@@ -104,6 +105,8 @@ public class TranscribePresenter extends BasicPresenter {
         executorService = Executors.newFixedThreadPool(absolutePathList.size());
         List<Completable> completables = new ArrayList<>();
         mTranscribeIDToPartNumber.clear();
+        mPartNumberToTranscriberForSummary.clear();
+        mPartNumberToTranscriberForView.clear();
         mPollingDisposables.clear();
 
         for (String absolutePath : absolutePathList) {
@@ -371,28 +374,48 @@ public class TranscribePresenter extends BasicPresenter {
         );
     }
 
-    private String postProcessTranscriptionData(long timestamp, int filePartNumber) {
-        StringBuilder sb = new StringBuilder();
+    private void postProcessTranscriptionData(long timestamp, int filePartNumber) {
+        Log.d(TAG, "postProcessTranscriptionData# t=" + timestamp + ", num=" + filePartNumber);
+        StringBuilder sbTranscriptionForSummary = new StringBuilder();
+        StringBuilder sbTranscriptionForView = new StringBuilder();
+
+        SimpleDateFormat sdf = new SimpleDateFormat("HH:mm:ss.SSS");
+        sdf.setTimeZone(TimeZone.getTimeZone("UTC"));
 
         for (RecognizedPhrase phrase : mTranscribeResult.recognizedPhrases) {
-            String newString = "{speaker " + phrase.speaker +
+            // string for the next steps to summarize
+            String transcriptionForSummary = "{speaker " + phrase.speaker +
                     ":" +
                     phrase.nBest.get(0).display +
                     "}, ";
-            sb.append(newString);
+            sbTranscriptionForSummary.append(transcriptionForSummary);
+
+            // string for log appearance and saving file.
+            SimpleDateFormat df2 = new SimpleDateFormat("HH:mm:ss.SSS");
+            df2.setTimeZone(TimeZone.getTimeZone("UTC"));
+            Date date = new Date(phrase.offsetInTicks.longValue() / 10000L);
+            String dateText = df2.format(date);
+
+            String transcriptionForView = dateText + " {speaker " + phrase.speaker +
+                    ":" +
+                    phrase.nBest.get(0).display +
+                    "}\n";
+            sbTranscriptionForView.append(transcriptionForView);
         }
 
-        String transcription = sb.toString();
-        mPartNumberToTranscriber.put(filePartNumber, transcription);
-        if (mPartNumberToTranscriber.size() == mTranscribeIDToPartNumber.size()) {
-            storeMeetingMinutesToFile(transcription, timestamp);
+        mPartNumberToTranscriberForSummary.put(filePartNumber,
+                sbTranscriptionForSummary.toString());
+        mPartNumberToTranscriberForView.put(filePartNumber, sbTranscriptionForView.toString());
+
+        // Get all results from server and start to process next step.
+        if (mPartNumberToTranscriberForSummary.size() == mTranscribeIDToPartNumber.size()) {
+            storeMeetingMinutesToFile(timestamp);
         }
-        mLogTextCallback.onLogReceived("Transcription:\n" + transcription);
-        return transcription;
+        mLogTextCallback.onLogReceived("Transcription:\n" + sbTranscriptionForView.toString());
     }
 
-    private void storeMeetingMinutesToFile(String meetingMinutes, long timestamp) {
-        Log.d(TAG, "storeTextToDatabase, summary: " + "\n" + meetingMinutes);
+    private void storeMeetingMinutesToFile(long timestamp) {
+        Log.d(TAG, "storeTextToDatabase#");
 
         File outputFile = createMeetingMinutesFile(mContext, timestamp);
 
@@ -401,8 +424,8 @@ public class TranscribePresenter extends BasicPresenter {
                             try {
                                 FileOutputStream outputStream = new FileOutputStream(outputFile);
 
-                                for (int i = 0; i < mPartNumberToTranscriber.size(); i++) {
-                                    outputStream.write(mPartNumberToTranscriber.get(i).getBytes());
+                                for (int i = 0; i < mPartNumberToTranscriberForView.size(); i++) {
+                                    outputStream.write(mPartNumberToTranscriberForView.get(i).getBytes());
                                 }
 
                                 outputStream.close();
@@ -418,9 +441,8 @@ public class TranscribePresenter extends BasicPresenter {
                                     + outputFile.getPath() + " *****\n";
                             Log.d(TAG, saveFileLog);
                             mLogTextCallback.onLogReceived(saveFileLog);
-
-                            mTranscribeCallback.onAllPartsTranscribed(mPartNumberToTranscriber,
-                                    timestamp);
+                            mTranscribeCallback.onAllPartsTranscribed(
+                                    mPartNumberToTranscriberForSummary, timestamp);
                         })
         );
     }
