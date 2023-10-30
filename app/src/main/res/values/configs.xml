@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="date_format">yyyy_MM_dd_HH_mm</string>
+    <!-- Minutes -->
+    <integer name="each_segment_duration">8</integer>
+</resources>

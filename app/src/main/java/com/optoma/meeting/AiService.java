@@ -6,6 +6,7 @@ import static com.optoma.meeting.AiServiceProxy.KEY_LANGUAGE;
 import static com.optoma.meeting.AiServiceProxy.KEY_TEXT;
 import static com.optoma.meeting.util.DebugConfig.TAG_MM;
 import static com.optoma.meeting.util.DebugConfig.TAG_WITH_CLASS_NAME;
+import static com.optoma.meeting.util.FileUtil.deleteCache;
 
 import android.app.Service;
 import android.content.Intent;
@@ -22,6 +23,7 @@ import com.optoma.meeting.presenter.TranscribePresenter;
 import com.optoma.meeting.state.ProcessState;
 
 import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
@@ -30,7 +32,7 @@ public class AiService extends Service {
 
     private static final String TAG = TAG_WITH_CLASS_NAME ? "AiService" : TAG_MM;
 
-    private final Executor mExecutors = Executors.newFixedThreadPool(3);
+    private final Executor mExecutors = Executors.newSingleThreadExecutor();
 
     private final IAiService.Stub mAiService = new IAiService.Stub() {
         @Override
@@ -43,7 +45,7 @@ public class AiService extends Service {
         public void startAudioProcessing(Bundle params) {
             Log.d(TAG, "AIDL.Stub#startAudioProcessing params=" + params.size());
             mCurrentLanguage = params.getString(KEY_LANGUAGE);
-            mAiServiceCallback.onStateChanged(ProcessState.START_SPLIT.name());
+            setState(ProcessState.START_SPLIT);
             // Put the heavy things to the background thread.
             mExecutors.execute(() ->
                     mSplitFilePresenter.startSplitFile(params.getString(KEY_AUDIO_FILE_PATH)));
@@ -54,7 +56,7 @@ public class AiService extends Service {
             Log.d(TAG, "AIDL.Stub#startTextProcessing params=" + params.size());
             mCurrentLanguage = params.getString(KEY_LANGUAGE);
             ArrayList<String> textListToSave = params.getStringArrayList(KEY_TEXT);
-            mAiServiceCallback.onStateChanged(ProcessState.START_TEXT_SAVING.name());
+            setState(ProcessState.START_TEXT_SAVING);
             // Put the heavy things to the background thread.
             mExecutors.execute(() ->
                     mSaveTextToFilePresenter.saveStringsToFile(textListToSave));
@@ -97,15 +99,25 @@ public class AiService extends Service {
 
     private void setupPresenter() {
         mSplitFilePresenter = new SplitFilePresenter(this, mLogTextCallbackWrapper,
-                newFileAbsolutePathList -> {
-                    mAiServiceCallback.onStateChanged(ProcessState.END_SPLIT.name());
-                    for (String path : newFileAbsolutePathList) {
-                        mLogTextCallbackWrapper.onLogReceived("new file: " + path + "\n");
+                new SplitFilePresenter.SplitFileCallback() {
+                    @Override
+                    public void onFileSplit(List<String> newFileAbsolutePathList) {
+                        setState(ProcessState.END_SPLIT);
+                        for (String path : newFileAbsolutePathList) {
+                            mLogTextCallbackWrapper.onLogReceived("new file: " + path + "\n");
+                        }
+                        // transcribe
+                        setState(ProcessState.START_TRANSCRIBE);
+                        mTranscribePresenter.uploadAudioAndTranscribe(newFileAbsolutePathList,
+                                mCurrentLanguage);
                     }
-                    // transcribe
-                    mAiServiceCallback.onStateChanged(ProcessState.START_TRANSCRIBE.name());
-                    mTranscribePresenter.uploadAudioAndTranscribe(newFileAbsolutePathList,
-                            mCurrentLanguage);
+
+                    @Override
+                    public void onError(String error) {
+                        Log.d(TAG, "onFileSplitError# error=" + error);
+                        setState(ProcessState.END_SPLIT);
+                        setState(ProcessState.IDLE);
+                    }
                 });
 
         mTranscribePresenter = new TranscribePresenter(this, mLogTextCallbackWrapper,
@@ -119,17 +131,17 @@ public class AiService extends Service {
                     public void onAllPartsTranscribed(Map<Integer, String> partNumberToTranscriber,
                             long timeStamp) {
                         Log.d(TAG, "onAllPartsTranscribed -> getAndStoreSummary");
-                        mAiServiceCallback.onStateChanged(ProcessState.END_TRANSCRIBE.name());
-                        mAiServiceCallback.onStateChanged(ProcessState.START_SUMMARY.name());
+                        setState(ProcessState.END_TRANSCRIBE);
+                        setState(ProcessState.START_SUMMARY);
                         mSummaryPresenter.processMultipleConversations(mCurrentLanguage,
                                 partNumberToTranscriber, timeStamp);
                     }
 
                     @Override
                     public void onError(String error) {
-                        Log.d(TAG, "onError# error=" + error);
-                        mAiServiceCallback.onStateChanged(ProcessState.END_TRANSCRIBE.name());
-                        mAiServiceCallback.onStateChanged(ProcessState.IDLE.name());
+                        Log.d(TAG, "onTranscribedError# error=" + error);
+                        setState(ProcessState.END_TRANSCRIBE);
+                        setState(ProcessState.IDLE);
                     }
                 });
 
@@ -138,25 +150,43 @@ public class AiService extends Service {
                     @Override
                     public void onSummarized() {
                         Log.d(TAG, "onSummarized#");
-                        mAiServiceCallback.onStateChanged(ProcessState.END_SUMMARY.name());
-                        mAiServiceCallback.onStateChanged(ProcessState.IDLE.name());
+                        setState(ProcessState.END_SUMMARY);
+                        setState(ProcessState.IDLE);
                     }
 
                     @Override
                     public void onError(String error) {
-                        Log.d(TAG, "onError# error=" + error);
-                        mAiServiceCallback.onStateChanged(ProcessState.END_SUMMARY.name());
-                        mAiServiceCallback.onStateChanged(ProcessState.IDLE.name());
+                        Log.d(TAG, "onSummarizedError# error=" + error);
+                        setState(ProcessState.END_SUMMARY);
+                        setState(ProcessState.IDLE);
                     }
                 });
 
         mSaveTextToFilePresenter = new SaveTextToFilePresenter(this, mLogTextCallbackWrapper,
-                (Map<Integer, String> partNumberToTranscriber, long timeStamp) -> {
-                    Log.d(TAG, "onTextSaved#");
-                    mAiServiceCallback.onStateChanged(ProcessState.END_TEXT_SAVING.name());
-                    mSummaryPresenter.processMultipleConversations(mCurrentLanguage,
-                            partNumberToTranscriber, timeStamp);
+                new SaveTextToFilePresenter.SaveTextToFileCallback() {
+                    @Override
+                    public void onTextSaved(Map<Integer, String> partNumberToTranscriber,
+                            long timeStamp) {
+                        Log.d(TAG, "onTextSaved#");
+                        setState(ProcessState.END_TEXT_SAVING);
+                        mSummaryPresenter.processMultipleConversations(mCurrentLanguage,
+                                partNumberToTranscriber, timeStamp);
+                    }
+
+                    @Override
+                    public void onError(String error) {
+                        Log.d(TAG, "onTextSavedError# error=" + error);
+                        setState(ProcessState.END_TEXT_SAVING);
+                        setState(ProcessState.IDLE);
+                    }
                 });
+    }
+
+    private void setState(ProcessState state) {
+        mAiServiceCallback.onStateChanged(state.name());
+        if (state == ProcessState.IDLE) {
+            deleteCache(this);
+        }
     }
 
     private void destroyPresenter() {

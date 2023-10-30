@@ -29,24 +29,19 @@ import okhttp3.ResponseBody;
 
 public class SummaryPresenter extends BasicPresenter {
 
-    private static final String TAG = SummaryPresenter.class.getSimpleName();
+    private final SummaryCallback mSummaryCallback;
 
-    private final Context mContext;
-    private LogTextCallback mLogTextCallback;
-    private SummaryCallback mSummaryCallback;
-    private Map<Integer, String> mPartNumberToSummary = new ConcurrentHashMap<>();
+    private final Map<Integer, String> mPartNumberToSummary = new ConcurrentHashMap<>();
 
-    public interface SummaryCallback {
+    public interface SummaryCallback extends ErrorCallback {
         void onSummarized();
-
-        void onError(String error);
     }
 
     public SummaryPresenter(Context context, LogTextCallback callback,
             SummaryCallback summaryCallback) {
-        this.mContext = context;
-        this.mLogTextCallback = callback;
-        this.mSummaryCallback = summaryCallback;
+        super(context, callback, summaryCallback);
+        TAG = SummaryPresenter.class.getSimpleName();
+        mSummaryCallback = summaryCallback;
     }
 
     public void processMultipleConversations(String currentLanguage,
@@ -91,14 +86,15 @@ public class SummaryPresenter extends BasicPresenter {
                                 ResponseBody errorBody = response.errorBody();
                                 if (errorBody != null) {
                                     String errorLog = "errorMessage: " +
-                                            NetworkServiceHelper.generateErrorToastContent(
-                                                    errorBody);
-                                    Log.d(TAG, errorLog);
-                                    mLogTextCallback.onLogReceived(errorLog);
-                                    mSummaryCallback.onError(errorLog);
+                                            NetworkServiceHelper.generateErrorToastContent(errorBody);
+                                    performError(errorLog);
                                 }
                             }
-                        }, throwable -> Log.w(TAG, "fail to getOpenAICompletion, %s", throwable))
+                        }, throwable -> {
+                            String errorLog = "errorMessage: " +
+                                    "fail to getOpenAICompletion. " + throwable.getMessage();
+                            performError(errorLog);
+                        })
         );
     }
 
@@ -137,7 +133,8 @@ public class SummaryPresenter extends BasicPresenter {
                                 mLogTextCallback.onLogReceived(summary.toString());
 
                             } catch (IOException e) {
-                                e.printStackTrace();
+                                String errorLog = "errorMessage: IOException";
+                                performError(errorLog);
                             }
                         })
                         .subscribeOn(Schedulers.io())

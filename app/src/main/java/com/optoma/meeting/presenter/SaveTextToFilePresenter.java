@@ -19,21 +19,18 @@ import io.reactivex.android.schedulers.AndroidSchedulers;
 import io.reactivex.schedulers.Schedulers;
 
 public class SaveTextToFilePresenter extends BasicPresenter {
-    private static final String TAG = SaveTextToFilePresenter.class.getSimpleName();
 
-    public interface SaveTextToFileCallback {
+    public interface SaveTextToFileCallback extends ErrorCallback {
         void onTextSaved(Map<Integer, String> text, long timeStamp);
     }
 
-    private final Context mContext;
-    private final LogTextCallback mLogTextCallback;
     private final SaveTextToFileCallback mSaveTextToFileCallback;
 
     public SaveTextToFilePresenter(Context context, LogTextCallback callback,
             SaveTextToFileCallback saveTextToFileCallback) {
-        this.mContext = context;
-        this.mLogTextCallback = callback;
-        this.mSaveTextToFileCallback = saveTextToFileCallback;
+        super(context, callback, saveTextToFileCallback);
+        TAG = SaveTextToFilePresenter.class.getSimpleName();
+        mSaveTextToFileCallback = saveTextToFileCallback;
     }
 
     public void saveStringsToFile(ArrayList<String> textListToSave) {
@@ -58,7 +55,8 @@ public class SaveTextToFilePresenter extends BasicPresenter {
                                 partNumberToSummary.put(0, toSummary.toString());
 
                             } catch (IOException e) {
-                                e.printStackTrace();
+                                String errorLog = "errorMessage: IOException";
+                                performError(errorLog);
                             }
                         })
                         .subscribeOn(Schedulers.io())

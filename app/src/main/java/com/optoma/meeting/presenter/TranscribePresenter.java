@@ -54,12 +54,9 @@ import okhttp3.ResponseBody;
 
 public class TranscribePresenter extends BasicPresenter {
 
-    private static final String TAG = TranscribePresenter.class.getSimpleName();
-
     public static final int POLLING_FREQ_IN_SEC = 20;
     private static final boolean DEBUG = true;
     private static final String SIMPLE_DATE_FORMAT = "yyyy-MM-dd'T'HH:mm:ss'Z'";
-    private final Context mContext;
 
     private String storageConnectionString = DEFAULT_ENDPOINTS_PROTOCAL
             + STORAGE_ACCOUNT_NAME
@@ -70,23 +67,21 @@ public class TranscribePresenter extends BasicPresenter {
     String mWavContentUrl = "https://" + STORAGE_ACCOUNT_NAME
             + ".blob.core.windows.net/" + AZURE_STORAGE_CONTAINER_NAME + "/" + AZURE_STORAGE_BLOB_NAME;
 
-    private LogTextCallback mLogTextCallback;
-    private TranscribeCallback mTranscribeCallback;
-    private ExecutorService executorService;
+    private final TranscribeCallback mTranscribeCallback;
+
+    private ExecutorService mExecutorService;
 
     public TranscribePresenter(Context context, LogTextCallback callback,
             TranscribeCallback transcribeCallback) {
-        this.mContext = context;
-        this.mLogTextCallback = callback;
-        this.mTranscribeCallback = transcribeCallback;
+        super(context, callback, transcribeCallback);
+        TAG = TranscribePresenter.class.getSimpleName();
+        mTranscribeCallback = transcribeCallback;
     }
 
-    public interface TranscribeCallback {
+    public interface TranscribeCallback extends ErrorCallback {
         void onTranscribed(String text, long timeStamp);
 
         void onAllPartsTranscribed(Map<Integer, String> partNumberToTranscriber, long timeStamp);
-
-        void onError(String error);
     }
 
     private final Map<String, Integer> mTranscribeIDToPartNumber = new HashMap<>();
@@ -102,7 +97,7 @@ public class TranscribePresenter extends BasicPresenter {
         Log.d(TAG, "uploadFileFromFile: start");
         mLogTextCallback.onLogReceived("uploadFileFromFile: start...");
 
-        executorService = Executors.newFixedThreadPool(absolutePathList.size());
+        mExecutorService = Executors.newFixedThreadPool(absolutePathList.size());
         List<Completable> completables = new ArrayList<>();
         mTranscribeIDToPartNumber.clear();
         mPartNumberToTranscriberForSummary.clear();
@@ -171,7 +166,7 @@ public class TranscribePresenter extends BasicPresenter {
                         }
                         emitter.onComplete();
                     })
-                    .subscribeOn(Schedulers.from(executorService));
+                    .subscribeOn(Schedulers.from(mExecutorService));
 
             completables.add(completable);
         }
@@ -182,10 +177,10 @@ public class TranscribePresenter extends BasicPresenter {
                     Log.d(TAG, "*** executorService.shutdown().");
                     mLogTextCallback.onLogReceived("*** executorService.shutdown().");
                     // Handle completion on the main thread
-                    executorService.shutdown();
+                    mExecutorService.shutdown();
                 }, throwable -> {
                     Log.w(TAG, "fail to uploadAudio, %s", throwable);
-                    executorService.shutdown();
+                    mExecutorService.shutdown();
                 });
     }
 
@@ -240,9 +235,7 @@ public class TranscribePresenter extends BasicPresenter {
                                 if (errorBody != null) {
                                     String errorLog = "errorMessage: " +
                                             NetworkServiceHelper.generateErrorToastContent(errorBody);
-                                    Log.d(TAG, errorLog);
-                                    mLogTextCallback.onLogReceived(errorLog);
-                                    mTranscribeCallback.onError(errorLog);
+                                    performError(errorLog);
                                 }
                             }
                         }, throwable -> Log.w(TAG, "fail to getUserDrinkList, %s", throwable))
@@ -285,9 +278,7 @@ public class TranscribePresenter extends BasicPresenter {
                                 if (errorBody != null) {
                                     String errorLog = "errorMessage: " +
                                             NetworkServiceHelper.generateErrorToastContent(errorBody);
-                                    Log.d(TAG, errorLog);
-                                    mLogTextCallback.onLogReceived(errorLog);
-                                    mTranscribeCallback.onError(errorLog);
+                                    performError(errorLog);
                                 }
                             }
                         }, throwable -> Log.w(TAG, "fail to getTranscriptionStatus, %s", throwable))
@@ -323,9 +314,7 @@ public class TranscribePresenter extends BasicPresenter {
                                 if (errorBody != null) {
                                     String errorLog = "errorMessage: " +
                                             NetworkServiceHelper.generateErrorToastContent(errorBody);
-                                    Log.d(TAG, errorLog);
-                                    mLogTextCallback.onLogReceived(errorLog);
-                                    mTranscribeCallback.onError(errorLog);
+                                    performError(errorLog);
                                 }
                             }
                         }, throwable -> Log.w(TAG, "fail to getUserDrinkList, %s", throwable))
@@ -365,9 +354,7 @@ public class TranscribePresenter extends BasicPresenter {
                                 if (errorBody != null) {
                                     String errorLog = "errorMessage: " +
                                             NetworkServiceHelper.generateErrorToastContent(errorBody);
-                                    Log.d(TAG, errorLog);
-                                    mLogTextCallback.onLogReceived(errorLog);
-                                    mTranscribeCallback.onError(errorLog);
+                                    performError(errorLog);
                                 }
                             }
                         }, throwable -> Log.w(TAG, "fail to getUserDrinkList, %s", throwable))
@@ -391,10 +378,13 @@ public class TranscribePresenter extends BasicPresenter {
             sbTranscriptionForSummary.append(transcriptionForSummary);
 
             // string for log appearance and saving file.
-            SimpleDateFormat df2 = new SimpleDateFormat("HH:mm:ss.SSS");
-            df2.setTimeZone(TimeZone.getTimeZone("UTC"));
-            Date date = new Date(phrase.offsetInTicks.longValue() / 10000L);
-            String dateText = df2.format(date);
+            // here we transform minutes into milliseconds
+            long baseOffset = filePartNumber * mEachSegmentDuration * 60 * 1000L;
+            // According to definition on https://learn.microsoft.com/zh-tw/azure/ai-services/speech-service/batch-transcription-get?pivots=rest-api
+            // , 1 offsetInTicks = 100ns. Here we want the offsetInTicks to milliseconds.
+            long offset = phrase.offsetInTicks.longValue() / 10000L;
+            long finalOffset = baseOffset + offset;
+            String dateText = sdf.format(new Date(finalOffset));
 
             String transcriptionForView = dateText + " {speaker " + phrase.speaker +
                     ":" +
