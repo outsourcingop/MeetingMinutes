@@ -112,7 +112,7 @@ public class SplitFilePresenter extends BasicPresenter {
 
             // The format is like "00:23:45"
             String stringStartTime = calendarToString(startTime);
-            Log.d(TAG, "splitAndSaveFiles# fileIndex=" + i + ", startTime=" + stringStartTime);
+            Log.d(TAG, "splitAndSaveFiles# filePartNumber=" + i + ", startTime=" + stringStartTime);
 
             // The format is like "00:08:00"
             String stringEachDuration = calendarToString(eachSegmentDuration);
@@ -129,7 +129,7 @@ public class SplitFilePresenter extends BasicPresenter {
                 ReturnCode returnCode = session.getReturnCode();
                 // CALLED WHEN SESSION IS EXECUTED
                 Log.d(TAG, String.format(
-                        "FFmpeg process the fileIndex=%d exited with state %s and rc %s.%s",
+                        "FFmpeg process the filePartNumber=%d exited with state %s and rc %s.%s",
                         fileIndex, state, returnCode,
                         session.getFailStackTrace()));
 
@@ -137,9 +137,10 @@ public class SplitFilePresenter extends BasicPresenter {
                 if (ReturnCode.isSuccess(returnCode)) {
                     newFileAbsolutePathList.add(newFileAbsolutePath);
                     if (newFileAbsolutePathList.size() == splitNumber) {
+                        String endLog = "endSplitFile ---";
+                        Log.d(TAG, endLog);
+                        mLogTextCallback.onLogReceived(endLog);
                         mSplitFileCallback.onFileSplit(newFileAbsolutePathList);
-                        Log.d(TAG, "endSplitFile ---");
-                        mLogTextCallback.onLogReceived("endSplitFile ---");
                     }
                 }
             });

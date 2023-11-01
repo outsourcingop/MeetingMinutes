@@ -362,7 +362,7 @@ public class TranscribePresenter extends BasicPresenter {
     }
 
     private void postProcessTranscriptionData(long timestamp, int filePartNumber) {
-        Log.d(TAG, "postProcessTranscriptionData# t=" + timestamp + ", num=" + filePartNumber);
+        Log.d(TAG, "postProcessTranscriptionData# t=" + timestamp + ", filePartNumber=" + filePartNumber);
         StringBuilder sbTranscriptionForSummary = new StringBuilder();
         StringBuilder sbTranscriptionForView = new StringBuilder();
 
@@ -405,7 +405,7 @@ public class TranscribePresenter extends BasicPresenter {
     }
 
     private void storeMeetingMinutesToFile(long timestamp) {
-        Log.d(TAG, "storeTextToDatabase#");
+        Log.d(TAG, "storeMeetingMinutesToFile#");
 
         File outputFile = createMeetingMinutesFile(mContext, timestamp);
 

@@ -1,6 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <!-- Output file name -->
+    <string name="meeting_minutes_file_name">Meeting_Minutes_%1$s.txt</string>
+    <string name="meeting_actions_file_name">Meeting_Actions_%1$s.txt</string>
+    <!-- Date format for output file name -->
     <string name="date_format">yyyy_MM_dd_HH_mm</string>
     <!-- Minutes -->
     <integer name="each_segment_duration">8</integer>
+    <!-- Maximum token for summary -->
+    <integer name="max_summary_tokens">400</integer>
 </resources>

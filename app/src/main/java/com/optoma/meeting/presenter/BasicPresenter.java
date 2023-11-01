@@ -10,7 +10,7 @@ import io.reactivex.disposables.CompositeDisposable;
 
 public class BasicPresenter {
 
-    protected static String TAG = BasicPresenter.class.getSimpleName();
+    protected String TAG = BasicPresenter.class.getSimpleName();
 
     protected final Context mContext;
     protected final LogTextCallback mLogTextCallback;

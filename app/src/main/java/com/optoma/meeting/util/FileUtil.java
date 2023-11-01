@@ -1,5 +1,6 @@
 package com.optoma.meeting.util;
 
+import android.annotation.SuppressLint;
 import android.content.ContentUris;
 import android.content.Context;
 import android.database.Cursor;
@@ -36,19 +37,20 @@ public class FileUtil {
     }
 
     public static File createMeetingMinutesFile(Context context, long timestamp) {
-        String fileName = "Meeting_Minutes_" + convertTimestampToDateTime(context,
-                timestamp) + ".txt";
+        String fileName = context.getString(R.string.meeting_minutes_file_name,
+                convertTimestampToDateTime(context, timestamp));
         return new File(getExternalStoragePublicDirectory(), fileName);
     }
 
     public static File createMeetingActionsFile(Context context, long timestamp) {
-        String fileName = "Meeting_Actions_" + convertTimestampToDateTime(context,
-                timestamp) + ".txt";
+        String fileName = context.getString(R.string.meeting_actions_file_name,
+                convertTimestampToDateTime(context, timestamp));
         return new File(getExternalStoragePublicDirectory(), fileName);
     }
 
     private static String convertTimestampToDateTime(Context context, long timestamp) {
         Date date = new Date(timestamp);
+        @SuppressLint("SimpleDateFormat")
         SimpleDateFormat sdf = new SimpleDateFormat(context.getString(R.string.date_format));
         return sdf.format(date);
     }

@@ -7,6 +7,7 @@ import android.util.Log;
 
 import com.optoma.meeting.BuildConfig;
 import com.optoma.meeting.LogTextCallback;
+import com.optoma.meeting.R;
 import com.optoma.meeting.model.azureopenai.chat.ChatMessage;
 import com.optoma.meeting.model.azureopenai.chat.ChatRequest;
 import com.optoma.meeting.model.azureopenai.chat.ChatResponse;
@@ -54,13 +55,17 @@ public class SummaryPresenter extends BasicPresenter {
 
     public void getSummary(String language, int partNumber, String conversation, long timeInMillis,
             int totalPartNumber) {
-        Log.d(TAG, "sendMessageToAzureOpenAI: " + conversation + ", \ntimestamp: " + timeInMillis);
-        mLogTextCallback.onLogReceived("sendMessageToAzureOpenAI -- Start");
+        Log.d(TAG, "sendMessageToAzureOpenAI# filePartNumber=" + partNumber + "\n" +
+                conversation + ", " + "\ntimestamp" + ": " + timeInMillis);
+        mLogTextCallback.onLogReceived(
+                "sendMessageToAzureOpenAI(filePartNumber=" + partNumber + ") -- Start");
+
+        final int maxTokens = mContext.getResources().getInteger(R.integer.max_summary_tokens);
 
         List<ChatMessage> messages = new ArrayList<>();
         messages.add(new ChatMessage("system",
                 "You are an AI assistant that helps people generate a summary in /// /// and list all action items discussed." +
-                        "All in 400 tokens. You MUST Follow the format in {{{ }}} and MUST USE " + language + " LANGUAGE." +
+                        "All in " + maxTokens + " tokens. You MUST Follow the format in {{{ }}} and MUST USE " + language + " LANGUAGE." +
                         "{{{\nSummary:\n(Summary) \n\nAction items:\n- Describe any additional action items here.}}}"));
         messages.add(new ChatMessage("user", conversation));
 
@@ -72,7 +77,8 @@ public class SummaryPresenter extends BasicPresenter {
                         .observeOn(AndroidSchedulers.mainThread())
                         .timeout(2, TimeUnit.MINUTES)
                         .subscribe(response -> {
-                            mLogTextCallback.onLogReceived("sendMessageToAzureOpenAI -- End");
+                            mLogTextCallback.onLogReceived(
+                                    "sendMessageToAzureOpenAI(filePartNumber=" + partNumber + ") -- End");
                             Log.d(TAG, "onResponse: " + response.code());
                             if (response.isSuccessful()) {
                                 ChatResponse result = response.body();
