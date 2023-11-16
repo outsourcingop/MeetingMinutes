@@ -28,6 +28,9 @@ public class SpeechRecognizerHelper {
     private String mCurrentLanguage;
     private boolean mAudioRecoding;
 
+    private long mSpeechRecognizerStartListeningTime = 0;
+    private boolean mSuccess = false;
+
     SpeechRecognizerHelper(Context context, AiServiceProxy aiServiceProxy) {
         mContext = context.getApplicationContext();
         mAiServiceProxy = aiServiceProxy;
@@ -72,6 +75,20 @@ public class SpeechRecognizerHelper {
             @Override
             public void onError(int error) {
                 Log.d(TAG, "onError# error=" + error);
+
+                // Sometime onError will get called after onResults so we keep a boolean to ignore error also
+                if (mSuccess) {
+                    Log.w(TAG, "Already success, ignoring error");
+                    return;
+                }
+
+                long duration = System.currentTimeMillis() - mSpeechRecognizerStartListeningTime;
+                if (duration < 500 && error == SpeechRecognizer.ERROR_NO_MATCH) {
+                    Log.d(TAG, "Doesn't seem like the system tried to listen at all. duration = " + duration + "ms. This might be a bug with onError and startListening methods of SpeechRecognizer");
+                    Log.d(TAG, "Going to ignore the error");
+                    return;
+                }
+                // -- actual error handing code goes here.
                 if (mAudioRecoding) {
                     startAudioRecording(currentLanguage, callback);
                 }
@@ -80,6 +97,8 @@ public class SpeechRecognizerHelper {
             @Override
             public void onResults(Bundle results) {
                 Log.d(TAG, "onResults# results=" + results.size());
+                mSuccess = true;
+
                 StringBuilder sb = new StringBuilder();
                 ArrayList<String> data =
                         results.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION);
@@ -101,8 +120,10 @@ public class SpeechRecognizerHelper {
                 Log.d(TAG, "onEvent# eventType=" + eventType + ", params=" + params.size());
             }
         });
+        mSpeechRecognizerStartListeningTime = System.currentTimeMillis();
         mSpeechRecognizer.startListening(createRecognizerIntent(currentLanguage));
         mAudioRecoding = true;
+        mSuccess = false;
     }
 
     private Intent createRecognizerIntent(String currentLanguage) {
