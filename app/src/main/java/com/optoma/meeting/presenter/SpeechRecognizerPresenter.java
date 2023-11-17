@@ -3,7 +3,6 @@ package com.optoma.meeting.presenter;
 import static com.optoma.meeting.BuildConfig.SPEECH_SUBSCRPTION_KEY;
 
 import android.content.Context;
-import android.text.TextUtils;
 import android.util.Log;
 
 import com.microsoft.cognitiveservices.speech.SpeechConfig;
@@ -15,15 +14,13 @@ import com.optoma.meeting.util.MicrophoneStream;
 
 import java.util.ArrayList;
 import java.util.concurrent.CopyOnWriteArrayList;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
-public class SpeechRecognizerPresenter extends BasicPresenter {
+import io.reactivex.Completable;
+import io.reactivex.android.schedulers.AndroidSchedulers;
+import io.reactivex.schedulers.Schedulers;
 
-    private interface OnTaskCompletedListener<T> {
-        void onCompleted(T taskResult);
-    }
+public class SpeechRecognizerPresenter extends BasicPresenter {
 
     public interface SpeechRecognizerCallback extends ErrorCallback {
         void onSpeechRecognitionCompleted(ArrayList<String> texts);
@@ -33,7 +30,6 @@ public class SpeechRecognizerPresenter extends BasicPresenter {
     private final String mSpeechRegion;
     private final int mMaxWordsInLine;
     private final CopyOnWriteArrayList<String> mCopyOnWriteTexts;
-    private final ExecutorService mExecutorService;
 
     private SpeechConfig mSpeechConfig;
     private MicrophoneStream mMicrophoneStream;
@@ -51,12 +47,10 @@ public class SpeechRecognizerPresenter extends BasicPresenter {
         mSpeechRegion = context.getResources().getString(R.string.speech_region);
         mMaxWordsInLine = context.getResources().getInteger(R.integer.max_words_in_line);
         mCopyOnWriteTexts = new CopyOnWriteArrayList<>();
-        mExecutorService = Executors.newCachedThreadPool();
     }
 
     public void startContinuousRecognitionAsync(String currentLanguage) {
         Log.d(TAG, "startContinuousRecognitionAsync# currentLanguage=" + currentLanguage);
-        final ArrayList<String> tmpTexts = new ArrayList<>();
         mCopyOnWriteTexts.clear();
 
         mSpeechConfig = SpeechConfig.fromSubscription(SPEECH_SUBSCRPTION_KEY, mSpeechRegion);
@@ -68,10 +62,7 @@ public class SpeechRecognizerPresenter extends BasicPresenter {
         mSpeechRecognizer.recognizing.addEventListener((o, speechRecognitionResultEventArgs) -> {
             String s = speechRecognitionResultEventArgs.getResult().getText();
             Log.d(TAG, "Intermediate result received: " + s);
-            tmpTexts.add(s);
-            String delimiter = decideDelimiter(tmpTexts);
-            mLogTextCallback.onLogReceived(TextUtils.join(delimiter, tmpTexts));
-//            tmpTexts.remove(tmpTexts.size() - 1);
+            mLogTextCallback.onLogReceived(s + " ");
         });
 
         mSpeechRecognizer.recognized.addEventListener((o, speechRecognitionResultEventArgs) -> {
@@ -80,12 +71,15 @@ public class SpeechRecognizerPresenter extends BasicPresenter {
             Log.d(TAG, "Final result received: " + s);
         });
 
-        Future<Void> startRecognitionTask = mSpeechRecognizer.startContinuousRecognitionAsync();
-        Log.d(TAG, "startContinuousRecognitionAsync#");
-        setOnTaskCompletedListener(startRecognitionTask, result -> {
-            Log.d(TAG, "startContinuousRecognitionAsync# Continuous recognition started.");
-            setContinuousRecognition(true);
-        });
+        mCompositeDisposable.add(
+                Completable.fromAction(() -> {
+                            Log.d(TAG, "startContinuousRecognitionAsync#");
+                            mSpeechRecognizer.startContinuousRecognitionAsync().get();
+                            Log.d(TAG, "startContinuousRecognitionAsync# Continuous recognition started.");
+                        })
+                        .subscribeOn(Schedulers.io())
+                        .observeOn(AndroidSchedulers.mainThread())
+                        .subscribe(() -> setContinuousRecognition(true)));
     }
 
     private void speechRecognitionCompleted() {
@@ -101,25 +95,20 @@ public class SpeechRecognizerPresenter extends BasicPresenter {
         if (!mStartContinuousRecognition || mSpeechRecognizer == null) {
             return;
         }
-        Future<Void> task = mSpeechRecognizer.stopContinuousRecognitionAsync();
-        Log.d(TAG, "stopContinuousRecognitionAsync#");
-        setOnTaskCompletedListener(task, result -> {
-            Log.d(TAG, "stopContinuousRecognitionAsync# Continuous recognition stopped.");
-            mMicrophoneStream.close();
-            mAudioInput.close();
-            mSpeechConfig.close();
-            mSpeechRecognizer.close();
-            // start the text processing in the service
-            speechRecognitionCompleted();
-        });
-    }
-
-    private String decideDelimiter(ArrayList<String> tmpTexts) {
-        int length = 0;
-        for (String s : tmpTexts) {
-            length += s.length();
-        }
-        return length >= mMaxWordsInLine ? " \n" : " ";
+        mCompositeDisposable.add(
+                Completable.fromAction(() -> {
+                            Log.d(TAG, "stopContinuousRecognitionAsync#");
+                            mSpeechRecognizer.stopContinuousRecognitionAsync().get();
+                            Log.d(TAG, "stopContinuousRecognitionAsync# Continuous recognition stopped.");
+                            mMicrophoneStream.close();
+                            mAudioInput.close();
+                            mSpeechConfig.close();
+                            mSpeechRecognizer.close();
+                        })
+                        .subscribeOn(Schedulers.io())
+                        .observeOn(AndroidSchedulers.mainThread())
+                        .subscribe(this::speechRecognitionCompleted)
+        );
     }
 
     private void setContinuousRecognition(boolean startContinuousRecognition) {
@@ -128,14 +117,6 @@ public class SpeechRecognizerPresenter extends BasicPresenter {
 
     public boolean isContinuousRecognition() {
         return mStartContinuousRecognition;
-    }
-
-    private <T> void setOnTaskCompletedListener(Future<T> task, OnTaskCompletedListener<T> l) {
-        mExecutorService.submit(() -> {
-            T result = task.get();
-            l.onCompleted(result);
-            return null;
-        });
     }
 
     @Override
