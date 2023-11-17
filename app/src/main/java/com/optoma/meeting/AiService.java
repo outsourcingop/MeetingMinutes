@@ -178,6 +178,7 @@ public class AiService extends Service {
                             long timeStamp) {
                         Log.d(TAG, "onTextSaved#");
                         setState(ProcessState.END_TEXT_SAVING);
+                        setState(ProcessState.START_SUMMARY);
                         mSummaryPresenter.processMultipleConversations(mCurrentLanguage,
                                 partNumberToTranscriber, timeStamp);
                     }
