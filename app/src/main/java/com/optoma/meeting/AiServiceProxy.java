@@ -51,12 +51,31 @@ public class AiServiceProxy extends IAiService.Stub {
     }
 
     @Override
-    public void startTextProcessing(Bundle params) {
+    public void startAudioRecognition(Bundle params) {
         try {
-            mAiService.startTextProcessing(params);
+            mAiService.startAudioRecognition(params);
         } catch (RemoteException e) {
-            Log.w(TAG, "run startTextProcessing() but " + e);
+            Log.w(TAG, "run startAudioRecognition() but " + e);
         }
+    }
+
+    @Override
+    public void stopAudioRecognition(Bundle params) {
+        try {
+            mAiService.stopAudioRecognition(params);
+        } catch (RemoteException e) {
+            Log.w(TAG, "run stopAudioRecognition() but " + e);
+        }
+    }
+
+    @Override
+    public boolean isAudioRecognizing() {
+        try {
+            return mAiService.isAudioRecognizing();
+        } catch (RemoteException e) {
+            Log.w(TAG, "run isAudioRecognizing() but " + e);
+        }
+        return false;
     }
 
     private static class DefaultAiServiceProxy extends IAiService.Stub {
@@ -70,7 +89,16 @@ public class AiServiceProxy extends IAiService.Stub {
         }
 
         @Override
-        public void startTextProcessing(Bundle params) {
+        public void startAudioRecognition(Bundle params) {
+        }
+
+        @Override
+        public void stopAudioRecognition(Bundle params) {
+        }
+
+        @Override
+        public boolean isAudioRecognizing() {
+            return false;
         }
     }
 

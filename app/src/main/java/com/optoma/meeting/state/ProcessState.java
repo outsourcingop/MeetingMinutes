@@ -8,6 +8,8 @@ public enum ProcessState {
     END_TRANSCRIBE(false),
     START_SUMMARY(false),
     END_SUMMARY(false),
+    START_AUDIO_RECOGNITION(true),
+    STOP_AUDIO_RECOGNITION(true),
     START_TEXT_SAVING(false),
     END_TEXT_SAVING(false);
 

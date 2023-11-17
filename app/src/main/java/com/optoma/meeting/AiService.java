@@ -3,7 +3,6 @@ package com.optoma.meeting;
 import static com.optoma.meeting.AiServiceProxy.KEY_AUDIO_FILE_PATH;
 import static com.optoma.meeting.AiServiceProxy.KEY_CALLBACK;
 import static com.optoma.meeting.AiServiceProxy.KEY_LANGUAGE;
-import static com.optoma.meeting.AiServiceProxy.KEY_TEXT;
 import static com.optoma.meeting.util.DebugConfig.TAG_MM;
 import static com.optoma.meeting.util.DebugConfig.TAG_WITH_CLASS_NAME;
 import static com.optoma.meeting.util.FileUtil.deleteCache;
@@ -17,6 +16,7 @@ import android.util.Log;
 import androidx.annotation.Nullable;
 
 import com.optoma.meeting.presenter.SaveTextToFilePresenter;
+import com.optoma.meeting.presenter.SpeechRecognizerPresenter;
 import com.optoma.meeting.presenter.SplitFilePresenter;
 import com.optoma.meeting.presenter.SummaryPresenter;
 import com.optoma.meeting.presenter.TranscribePresenter;
@@ -52,14 +52,22 @@ public class AiService extends Service {
         }
 
         @Override
-        public void startTextProcessing(Bundle params) {
-            Log.d(TAG, "AIDL.Stub#startTextProcessing params=" + params.size());
+        public void startAudioRecognition(Bundle params) {
+            Log.d(TAG, "AIDL.Stub#startAudioRecognition params=" + params.size());
             mCurrentLanguage = params.getString(KEY_LANGUAGE);
-            ArrayList<String> textListToSave = params.getStringArrayList(KEY_TEXT);
-            setState(ProcessState.START_TEXT_SAVING);
-            // Put the heavy things to the background thread.
-            mExecutors.execute(() ->
-                    mSaveTextToFilePresenter.saveStringsToFile(textListToSave));
+            setState(ProcessState.START_AUDIO_RECOGNITION);
+            mSpeechRecognizerPresenter.startContinuousRecognitionAsync(mCurrentLanguage);
+        }
+
+        @Override
+        public void stopAudioRecognition(Bundle params) {
+            Log.d(TAG, "AIDL.Stub#stopAudioRecognition params=" + params.size());
+            mSpeechRecognizerPresenter.stopContinuousRecognitionAsync();
+        }
+
+        @Override
+        public boolean isAudioRecognizing() {
+            return mSpeechRecognizerPresenter.isContinuousRecognition();
         }
     };
 
@@ -72,9 +80,10 @@ public class AiService extends Service {
 
     private final AiServiceCallbackProxy mAiServiceCallback = new AiServiceCallbackProxy();
 
-    private SaveTextToFilePresenter mSaveTextToFilePresenter;
     private SplitFilePresenter mSplitFilePresenter;
     private TranscribePresenter mTranscribePresenter;
+    private SpeechRecognizerPresenter mSpeechRecognizerPresenter;
+    private SaveTextToFilePresenter mSaveTextToFilePresenter;
     private SummaryPresenter mSummaryPresenter;
 
     private String mCurrentLanguage;
@@ -145,19 +154,19 @@ public class AiService extends Service {
                     }
                 });
 
-        mSummaryPresenter = new SummaryPresenter(this, mLogTextCallbackWrapper,
-                new SummaryPresenter.SummaryCallback() {
+        mSpeechRecognizerPresenter = new SpeechRecognizerPresenter(this, mLogTextCallbackWrapper,
+                new SpeechRecognizerPresenter.SpeechRecognizerCallback() {
                     @Override
-                    public void onSummarized() {
-                        Log.d(TAG, "onSummarized#");
-                        setState(ProcessState.END_SUMMARY);
-                        setState(ProcessState.IDLE);
+                    public void onSpeechRecognitionCompleted(ArrayList<String> texts) {
+                        setState(ProcessState.STOP_AUDIO_RECOGNITION);
+                        setState(ProcessState.START_TEXT_SAVING);
+                        mSaveTextToFilePresenter.saveStringsToFile(texts);
                     }
 
                     @Override
                     public void onError(String error) {
-                        Log.d(TAG, "onSummarizedError# error=" + error);
-                        setState(ProcessState.END_SUMMARY);
+                        Log.d(TAG, "onSpeechRecognitionError# error=" + error);
+                        setState(ProcessState.STOP_AUDIO_RECOGNITION);
                         setState(ProcessState.IDLE);
                     }
                 });
@@ -180,6 +189,23 @@ public class AiService extends Service {
                         setState(ProcessState.IDLE);
                     }
                 });
+
+        mSummaryPresenter = new SummaryPresenter(this, mLogTextCallbackWrapper,
+                new SummaryPresenter.SummaryCallback() {
+                    @Override
+                    public void onSummarized() {
+                        Log.d(TAG, "onSummarized#");
+                        setState(ProcessState.END_SUMMARY);
+                        setState(ProcessState.IDLE);
+                    }
+
+                    @Override
+                    public void onError(String error) {
+                        Log.d(TAG, "onSummarizedError# error=" + error);
+                        setState(ProcessState.END_SUMMARY);
+                        setState(ProcessState.IDLE);
+                    }
+                });
     }
 
     private void setState(ProcessState state) {
@@ -192,7 +218,8 @@ public class AiService extends Service {
     private void destroyPresenter() {
         mSplitFilePresenter.destroy();
         mTranscribePresenter.destroy();
-        mSummaryPresenter.destroy();
+        mSpeechRecognizerPresenter.destroy();
         mSaveTextToFilePresenter.destroy();
+        mSummaryPresenter.destroy();
     }
 }

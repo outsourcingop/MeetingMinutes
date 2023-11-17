@@ -9,4 +9,8 @@
     <integer name="each_segment_duration">8</integer>
     <!-- Maximum token for summary -->
     <integer name="max_summary_tokens">400</integer>
+    <!-- Replace below with your own service region (e.g., "westus") -->
+    <string name="speech_region">eastasia</string>
+    <!-- Maximum words in a line for the log history on view -->
+    <integer name="max_words_in_line">40</integer>
 </resources>

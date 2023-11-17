@@ -3,7 +3,6 @@ package com.optoma.meeting;
 import static com.optoma.meeting.AiServiceProxy.KEY_AUDIO_FILE_PATH;
 import static com.optoma.meeting.AiServiceProxy.KEY_CALLBACK;
 import static com.optoma.meeting.AiServiceProxy.KEY_LANGUAGE;
-import static com.optoma.meeting.BuildConfig.SPEECH_SUBSCRPTION_KEY;
 import static com.optoma.meeting.util.DebugConfig.TAG_MM;
 import static com.optoma.meeting.util.DebugConfig.TAG_WITH_CLASS_NAME;
 
@@ -16,7 +15,6 @@ import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.IBinder;
-import android.text.TextUtils;
 import android.util.Log;
 import android.view.View;
 import android.widget.AdapterView;
@@ -32,18 +30,8 @@ import androidx.annotation.BinderThread;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 
-import com.microsoft.cognitiveservices.speech.SpeechConfig;
-import com.microsoft.cognitiveservices.speech.SpeechRecognizer;
-import com.microsoft.cognitiveservices.speech.audio.AudioConfig;
-
 import com.optoma.meeting.state.ProcessState;
 import com.optoma.meeting.util.FileUtil;
-import com.optoma.meeting.util.MicrophoneStream;
-
-import java.util.ArrayList;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -125,7 +113,7 @@ public class MainActivity extends AppCompatActivity {
             registerForActivityResult(new ActivityResultContracts.RequestPermission(),
                     isGranted -> {
                         if (isGranted) {
-                            startOrStopAudioRecording();
+                            startOrStopAudioRecognition();
                         } else {
                             String logText = "Not allow the " +
                                     Manifest.permission.RECORD_AUDIO + " permission";
@@ -134,24 +122,7 @@ public class MainActivity extends AppCompatActivity {
                         }
                     });
 
-    private MicrophoneStream microphoneStream;
-    private MicrophoneStream createMicrophoneStream() {
-        this.releaseMicrophoneStream();
-
-        microphoneStream = new MicrophoneStream();
-        return microphoneStream;
-    }
-
-    private void releaseMicrophoneStream() {
-        if (microphoneStream != null) {
-            microphoneStream.close();
-            microphoneStream = null;
-        }
-    }
-
     private boolean mAiServiceBound;
-
-    private SpeechRecognizerHelper mSpeechRecognizerHelper;
 
     private ProcessState mProcessState;
 
@@ -159,11 +130,6 @@ public class MainActivity extends AppCompatActivity {
     private Button mFileSelectorButton;
     private Button mMicrophoneButton;
     private TextView mLogText;
-
-    // create config
-    private SpeechConfig speechConfig;
-    // Replace below with your own service region (e.g., "westus").
-    private static final String SpeechRegion = "eastasia";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -174,16 +140,9 @@ public class MainActivity extends AppCompatActivity {
         setContentView(R.layout.activity_main);
         setupContent();
         setupUi();
-
-        try {
-            speechConfig = SpeechConfig.fromSubscription(SPEECH_SUBSCRPTION_KEY, SpeechRegion);
-        } catch (Exception ex) {
-            ex.printStackTrace();
-        }
     }
 
     private void setupContent() {
-        mSpeechRecognizerHelper = new SpeechRecognizerHelper(this, mAiServiceProxy);
     }
 
     private void setupUi() {
@@ -243,105 +202,17 @@ public class MainActivity extends AppCompatActivity {
                 Manifest.permission.RECORD_AUDIO));
     }
 
-    private static final String logTag = "reco 3";
-    private boolean continuousListeningStarted = false;
-    private SpeechRecognizer reco = null;
-    private AudioConfig audioInput = null;
-    private String buttonText = "";
-    private ArrayList<String> content = new ArrayList<>();
-
-    private void startOrStopAudioRecording() {
-//        if (mSpeechRecognizerHelper.isAudioRecoding()) {
-//            updateLogText("stop audio recoding");
-//            mSpeechRecognizerHelper.stopAudioRecording();
-//            mMicrophoneButton.setText("Start Audio Recording by Microphone");
-//        } else {
-//            updateLogText("start audio recoding");
-//            mSpeechRecognizerHelper.startAudioRecording(
-//                    mLanguageSpinner.getSelectedItem().toString(),
-//                    this::updateLogText);
-//            mMicrophoneButton.setText("Stop Audio Recording by Microphone");
-//        }
-
-        ///////////////////////////////////////////////////
-        // recognize continuously
-        ///////////////////////////////////////////////////
-        // TODO: disableButtons();
-        // Continuous recognition stopped
-        if (continuousListeningStarted) {
-            if (reco != null) {
-                final Future<Void> task = reco.stopContinuousRecognitionAsync();
-                setOnTaskCompletedListener(task, result -> {
-                    Log.i(logTag, "Continuous recognition stopped.");
-                    MainActivity.this.runOnUiThread(() -> {
-                        // TODO: clickedButton.setText(buttonText);
-                    });
-                    // TODO: enableButtons();
-                    continuousListeningStarted = false;
-                });
-            } else {
-                continuousListeningStarted = false;
-            }
-
-            return;
+    private void startOrStopAudioRecognition() {
+        boolean isAudioRecognizing = mAiServiceProxy.isAudioRecognizing();
+        if (isAudioRecognizing) {
+            updateLogText("stop audio recognition");
+            stopAudioRecognition();
+            mMicrophoneButton.setText("Start Audio Recognition by Microphone");
+        } else {
+            updateLogText("start audio recognition");
+            startAudioRecognition();
+            mMicrophoneButton.setText("Stop Audio Recognition by Microphone");
         }
-
-        // Continuous recognition started
-        // TODO: clearTextBox();
-
-        try {
-            content.clear();
-
-            audioInput = AudioConfig.fromStreamInput(createMicrophoneStream());
-            speechConfig.setSpeechRecognitionLanguage(mLanguageSpinner.getSelectedItem().toString());
-            reco = new SpeechRecognizer(speechConfig, audioInput);
-
-            reco.recognizing.addEventListener((o, speechRecognitionResultEventArgs) -> {
-                final String s = speechRecognitionResultEventArgs.getResult().getText();
-                Log.i(logTag, "Intermediate result received: " + s);
-                content.add(s);
-                // TODO: setRecognizedText(TextUtils.join(" ", content));
-                updateLogText(TextUtils.join(" ", content));
-                content.remove(content.size() - 1);
-            });
-
-            reco.recognized.addEventListener((o, speechRecognitionResultEventArgs) -> {
-                final String s = speechRecognitionResultEventArgs.getResult().getText();
-                Log.i(logTag, "Final result received: " + s);
-                content.add(s);
-                // TODO: setRecognizedText(TextUtils.join(" ", content));
-                updateLogText(TextUtils.join(" ", content));
-            });
-
-            final Future<Void> task = reco.startContinuousRecognitionAsync();
-            setOnTaskCompletedListener(task, result -> {
-                continuousListeningStarted = true;
-                MainActivity.this.runOnUiThread(() -> {
-                    // TODO: buttonText = clickedButton.getText().toString();
-                    // TODO: clickedButton.setText("Stop");
-                    // TODO: clickedButton.setEnabled(true);
-                });
-            });
-        } catch (Exception ex) {
-            ex.printStackTrace();
-        }
-    }
-
-    private <T> void setOnTaskCompletedListener(Future<T> task, OnTaskCompletedListener<T> listener) {
-        s_executorService.submit(() -> {
-            T result = task.get();
-            listener.onCompleted(result);
-            return null;
-        });
-    }
-
-    private interface OnTaskCompletedListener<T> {
-        void onCompleted(T taskResult);
-    }
-
-    private static ExecutorService s_executorService;
-    static {
-        s_executorService = Executors.newCachedThreadPool();
     }
 
     private void updateLogText(String text) {
@@ -397,6 +268,18 @@ public class MainActivity extends AppCompatActivity {
         mAiServiceProxy.startAudioProcessing(bundle);
     }
 
+    private void startAudioRecognition() {
+        Bundle bundle = new Bundle();
+        bundle.putString(KEY_LANGUAGE, mLanguageSpinner.getSelectedItem().toString());
+        // Send the params to the service
+        mAiServiceProxy.startAudioRecognition(bundle);
+    }
+
+    private void stopAudioRecognition() {
+        // Send the params to the service
+        mAiServiceProxy.stopAudioRecognition(new Bundle());
+    }
+
     @Override
     protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
@@ -420,6 +303,5 @@ public class MainActivity extends AppCompatActivity {
         super.onDestroy();
 
         unbindAiService();
-        mSpeechRecognizerHelper.destroySpeechRecognizer();
     }
 }
