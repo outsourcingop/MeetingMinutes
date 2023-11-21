@@ -44,10 +44,10 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:background="@color/white"
-            android:textSize="18dp"
             android:gravity="bottom"
             android:paddingBottom="50dp"
-            android:textColor="@color/black" />
+            android:textColor="@color/black"
+            android:textSize="18dp" />
     </ScrollView>
 
 </LinearLayout>

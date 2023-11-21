@@ -285,11 +285,11 @@ public class MainActivity extends AppCompatActivity {
         super.onActivityResult(requestCode, resultCode, data);
         if (requestCode == REQUEST_CODE_AUDIO_PICK && resultCode == RESULT_OK) {
             if (data != null) {
-                updateLogText("File picked, Uri = " + data.getData());
+                Log.d(TAG, "File picked, Uri = " + data.getData());
                 Uri selectedAudioUri = data.getData();
                 String fileAbsolutePath = FileUtil.getAbsolutePath(MainActivity.this,
                         selectedAudioUri);
-                updateLogText("fileAbsolutePath = " + fileAbsolutePath);
+                Log.d(TAG, "fileAbsolutePath = " + fileAbsolutePath);
                 // start the audio file processing in the service
                 startAudioProcessing(fileAbsolutePath);
             } else {

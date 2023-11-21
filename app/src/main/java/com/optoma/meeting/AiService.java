@@ -113,7 +113,7 @@ public class AiService extends Service {
                     public void onFileSplit(List<String> newFileAbsolutePathList) {
                         setState(ProcessState.END_SPLIT);
                         for (String path : newFileAbsolutePathList) {
-                            mLogTextCallbackWrapper.onLogReceived("new file: " + path + "\n");
+                            Log.d(TAG, "new file: " + path + "\n");
                         }
                         // transcribe
                         setState(ProcessState.START_TRANSCRIBE);

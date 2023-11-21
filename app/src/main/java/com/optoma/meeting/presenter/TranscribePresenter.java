@@ -95,7 +95,6 @@ public class TranscribePresenter extends BasicPresenter {
 
     public void uploadAudioAndTranscribe(List<String> absolutePathList, String languageString) {
         Log.d(TAG, "uploadFileFromFile: start");
-        mLogTextCallback.onLogReceived("uploadFileFromFile: start...");
 
         mExecutorService = Executors.newFixedThreadPool(absolutePathList.size());
         List<Completable> completables = new ArrayList<>();
@@ -147,7 +146,6 @@ public class TranscribePresenter extends BasicPresenter {
                             // Storage init action--
 
                             Log.d(TAG, "Upload complete " + blob.getUri());
-                            mLogTextCallback.onLogReceived("Upload complete " + blob.getUri());
 
                             mWavContentUrl = blob.getUri().toString();
                             createSpeechToText(languageString, extractPartNumber(absolutePath));
@@ -175,7 +173,6 @@ public class TranscribePresenter extends BasicPresenter {
                 .observeOn(AndroidSchedulers.mainThread())
                 .subscribe(() -> {
                     Log.d(TAG, "*** executorService.shutdown().");
-                    mLogTextCallback.onLogReceived("*** executorService.shutdown().");
                     // Handle completion on the main thread
                     mExecutorService.shutdown();
                 }, throwable -> {
@@ -191,8 +188,7 @@ public class TranscribePresenter extends BasicPresenter {
      * @param filePartNumber The part number of the audio file (starting from 0).
      */
     private void createSpeechToText(String languageString, int filePartNumber) {
-        mLogTextCallback.onLogReceived(
-                "createSpeechToText: " + languageString + "\tfilePartNumber: " + filePartNumber);
+        Log.d(TAG, "createSpeechToText: " + languageString + "\tfilePartNumber: " + filePartNumber);
 
         TranscribeProperties properties = new TranscribeProperties();
         properties.diarizationEnabled = true;
@@ -224,8 +220,6 @@ public class TranscribePresenter extends BasicPresenter {
 
                                 if (response.code() == 201) {
                                     Log.d(TAG,
-                                            "createTranscription success: " + transcriptionID + ", filePartNumber: " + filePartNumber);
-                                    mLogTextCallback.onLogReceived(
                                             "createTranscription success: " + transcriptionID + ", filePartNumber: " + filePartNumber);
                                     mTranscribeIDToPartNumber.put(transcriptionID, filePartNumber);
                                     startPolling(transcriptionID);
@@ -401,7 +395,7 @@ public class TranscribePresenter extends BasicPresenter {
         if (mPartNumberToTranscriberForSummary.size() == mTranscribeIDToPartNumber.size()) {
             storeMeetingMinutesToFile(timestamp);
         }
-        mLogTextCallback.onLogReceived("Transcription:\n" + sbTranscriptionForView.toString());
+        mLogTextCallback.onLogReceived("Transcription:\n" + sbTranscriptionForView);
     }
 
     private void storeMeetingMinutesToFile(long timestamp) {

@@ -9,6 +9,7 @@ import android.util.Log;
 import com.arthenica.ffmpegkit.FFmpegKit;
 import com.arthenica.ffmpegkit.ReturnCode;
 import com.arthenica.ffmpegkit.SessionState;
+import com.optoma.meeting.BuildConfig;
 import com.optoma.meeting.LogTextCallback;
 import com.optoma.meeting.R;
 import com.optoma.meeting.util.AudioUtil;
@@ -20,8 +21,6 @@ import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 public class SplitFilePresenter extends BasicPresenter {
-
-    private static final boolean DEBUG = true;
 
     private final SplitFileCallback mSplitFileCallback;
 
@@ -45,18 +44,17 @@ public class SplitFilePresenter extends BasicPresenter {
         }
 
         Log.d(TAG, "startSplitFile +++");
-        mLogTextCallback.onLogReceived("startSplitFile +++");
-
-        if (DEBUG) {
-            Log.d(TAG, "inputAudioFilePath=" + inputAudioFilePath);
+        Log.d(TAG, "inputAudioFilePath=" + inputAudioFilePath);
+        if (BuildConfig.DEBUG) {
             mLogTextCallback.onLogReceived("inputAudioFilePath:" + inputAudioFilePath);
         }
 
         if (inputAudioFilePath != null) {
             calculateAndSplit(inputAudioFilePath);
         } else {
-            Log.e(TAG, "File path error!");
-            mLogTextCallback.onLogReceived("File path error!");
+            String errorLog = "File path error!";
+            mErrorCallback.onError(errorLog);
+            Log.d(TAG, "endSplitFile ---");
         }
     }
 
@@ -84,6 +82,9 @@ public class SplitFilePresenter extends BasicPresenter {
                         String errorLog = "errorMessage: " + e.getMessage();
                         performError(errorLog);
                     }
+                } else if (line.contains("Permission Denied")) {
+                    Log.w(TAG, "error=" + line);
+                    mLogTextCallback.onLogReceived("error=" + line);
                 }
             }
         });
@@ -137,9 +138,7 @@ public class SplitFilePresenter extends BasicPresenter {
                 if (ReturnCode.isSuccess(returnCode)) {
                     newFileAbsolutePathList.add(newFileAbsolutePath);
                     if (newFileAbsolutePathList.size() == splitNumber) {
-                        String endLog = "endSplitFile ---";
-                        Log.d(TAG, endLog);
-                        mLogTextCallback.onLogReceived(endLog);
+                        Log.d(TAG, "endSplitFile ---");
                         mSplitFileCallback.onFileSplit(newFileAbsolutePathList);
                     }
                 }

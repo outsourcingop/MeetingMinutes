@@ -57,8 +57,6 @@ public class SummaryPresenter extends BasicPresenter {
             int totalPartNumber) {
         Log.d(TAG, "sendMessageToAzureOpenAI# filePartNumber=" + partNumber + "\n" +
                 conversation + ", " + "\ntimestamp" + ": " + timeInMillis);
-        mLogTextCallback.onLogReceived(
-                "sendMessageToAzureOpenAI(filePartNumber=" + partNumber + ") -- Start");
 
         final int maxTokens = mContext.getResources().getInteger(R.integer.max_summary_tokens);
 
@@ -77,7 +75,7 @@ public class SummaryPresenter extends BasicPresenter {
                         .observeOn(AndroidSchedulers.mainThread())
                         .timeout(2, TimeUnit.MINUTES)
                         .subscribe(response -> {
-                            mLogTextCallback.onLogReceived(
+                            Log.d(TAG,
                                     "sendMessageToAzureOpenAI(filePartNumber=" + partNumber + ") -- End");
                             Log.d(TAG, "onResponse: " + response.code());
                             if (response.isSuccessful()) {
@@ -106,7 +104,6 @@ public class SummaryPresenter extends BasicPresenter {
 
     private void storeMeetingActionsToFile(long timestamp) {
         Log.d(TAG, "start to store meeting actions to database");
-        mLogTextCallback.onLogReceived("storeMeetingActionsToDatabase");
 
         File outputFile = createMeetingActionsFile(mContext, timestamp);
 
