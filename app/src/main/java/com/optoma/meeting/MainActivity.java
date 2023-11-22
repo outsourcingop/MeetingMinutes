@@ -222,7 +222,8 @@ public class MainActivity extends AppCompatActivity {
         final TextView v = mLogText;
         runOnUiThread(() -> {
             String origText = v.getText().toString();
-            origText += "\n" + text;
+            // text from bottom to top
+            origText = text + "\n" + origText;
             v.setText(origText);
         });
     }
