@@ -157,6 +157,11 @@ public class AiService extends Service {
         mSpeechRecognizerPresenter = new SpeechRecognizerPresenter(this, mLogTextCallbackWrapper,
                 new SpeechRecognizerPresenter.SpeechRecognizerCallback() {
                     @Override
+                    public void onLiveCaptionReceived(String recognizedText) {
+                        mAiServiceCallback.onLiveCaptionReceived(recognizedText);
+                    }
+
+                    @Override
                     public void onSpeechRecognitionCompleted(ArrayList<String> texts) {
                         setState(ProcessState.STOP_AUDIO_RECOGNITION);
                         setState(ProcessState.START_TEXT_SAVING);

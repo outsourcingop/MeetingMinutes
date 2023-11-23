@@ -23,6 +23,8 @@ import io.reactivex.schedulers.Schedulers;
 public class SpeechRecognizerPresenter extends BasicPresenter {
 
     public interface SpeechRecognizerCallback extends ErrorCallback {
+        void onLiveCaptionReceived(String recognizedText);
+
         void onSpeechRecognitionCompleted(ArrayList<String> texts);
     }
 
@@ -62,7 +64,7 @@ public class SpeechRecognizerPresenter extends BasicPresenter {
         mSpeechRecognizer.recognizing.addEventListener((o, speechRecognitionResultEventArgs) -> {
             String s = speechRecognitionResultEventArgs.getResult().getText();
             Log.d(TAG, "Intermediate result received: " + s);
-            mLogTextCallback.onLogReceived(s + " ");
+            mSpeechRecognizerCallback.onLiveCaptionReceived(s);
         });
 
         mSpeechRecognizer.recognized.addEventListener((o, speechRecognitionResultEventArgs) -> {

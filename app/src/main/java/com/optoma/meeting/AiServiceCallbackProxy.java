@@ -42,6 +42,15 @@ public class AiServiceCallbackProxy extends IAiServiceCallback.Stub {
     }
 
     @Override
+    public void onLiveCaptionReceived(String text) {
+        try {
+            mAiServiceCallback.onLiveCaptionReceived(text);
+        } catch (RemoteException e) {
+            Log.w(TAG, "run onLiveCaptionReceived() but " + e);
+        }
+    }
+
+    @Override
     public void onSummaryAndActionsReceived(String summary) {
         try {
             mAiServiceCallback.onSummaryAndActionsReceived(summary);
@@ -57,6 +66,10 @@ public class AiServiceCallbackProxy extends IAiServiceCallback.Stub {
 
         @Override
         public void onLogReceived(String text) {
+        }
+
+        @Override
+        public void onLiveCaptionReceived(String text) {
         }
 
         @Override
