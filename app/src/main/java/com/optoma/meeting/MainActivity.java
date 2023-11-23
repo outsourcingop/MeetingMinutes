@@ -241,10 +241,13 @@ public class MainActivity extends AppCompatActivity {
         final TextView v = mLogText;
         runOnUiThread(() -> {
             if (isLiveCaptionText) {
-                // remove the last one(also live caption text) that repeats live caption.
-                int lastOneIndex = mLogTextHistory.size() - 1;
-                if (mLogTextHistory.get(lastOneIndex).mIsLiveCaptionText) {
-                    mLogTextHistory.remove(lastOneIndex);
+                // The incoming live caption text normally is longer than the last one.
+                //   - yes, the last one is the recognizing text. It should be removed.
+                //   - no, the last one is the recognized text. Keep it.
+                LogText lastLogText = mLogTextHistory.get(mLogTextHistory.size() - 1);
+                if (lastLogText.mIsLiveCaptionText &&
+                        lastLogText.mLogText.length() < text.length()) {
+                    mLogTextHistory.remove(lastLogText);
                 }
             }
             // Put it the last one
